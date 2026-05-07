@@ -269,54 +269,123 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ),
                                     onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                                   ),
-                                ),
-                                const SizedBox(height: 24),
+                                 ),
+                                 if (_isLogin) ...[
+                                   Align(
+                                     alignment: Alignment.centerRight,
+                                     child: TextButton(
+                                       onPressed: _showForgotPasswordDialog,
+                                       style: TextButton.styleFrom(
+                                         padding: EdgeInsets.zero,
+                                         minimumSize: const Size(50, 30),
+                                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                         foregroundColor: primaryColor,
+                                       ),
+                                       child: const Text(
+                                         '¿Olvidaste tu contraseña?',
+                                         style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                       ),
+                                     ),
+                                   ),
+                                   const SizedBox(height: 16),
+                                 ] else ...[
+                                   const SizedBox(height: 24),
+                                 ],
 
-                                // Botón Premium con Gradiente
-                                Container(
-                                  height: 54,
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [primaryColor, secondaryColor],
-                                    ),
-                                    borderRadius: BorderRadius.circular(16),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: primaryColor.withOpacity(0.3),
-                                        blurRadius: 12,
-                                        offset: const Offset(0, 6),
-                                      ),
-                                    ],
-                                  ),
-                                  child: ElevatedButton(
-                                    onPressed: _isLoading ? null : _submit,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.transparent,
-                                      shadowColor: Colors.transparent,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                    ),
-                                    child: _isLoading
-                                        ? const SizedBox(
-                                            height: 24,
-                                            width: 24,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2.5,
-                                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                            ),
-                                          )
-                                        : Text(
-                                            _isLogin ? 'Iniciar Sesión' : 'Registrar Cuenta',
-                                            style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                  ),
-                                ),
-                              ],
+                                 // Botón Premium con Gradiente
+                                 Container(
+                                   height: 54,
+                                   decoration: BoxDecoration(
+                                     gradient: LinearGradient(
+                                       colors: [primaryColor, secondaryColor],
+                                     ),
+                                     borderRadius: BorderRadius.circular(16),
+                                     boxShadow: [
+                                       BoxShadow(
+                                         color: primaryColor.withOpacity(0.3),
+                                         blurRadius: 12,
+                                         offset: const Offset(0, 6),
+                                       ),
+                                     ],
+                                   ),
+                                   child: ElevatedButton(
+                                     onPressed: _isLoading ? null : _submit,
+                                     style: ElevatedButton.styleFrom(
+                                       backgroundColor: Colors.transparent,
+                                       shadowColor: Colors.transparent,
+                                       shape: RoundedRectangleBorder(
+                                         borderRadius: BorderRadius.circular(16),
+                                       ),
+                                     ),
+                                     child: _isLoading
+                                         ? const SizedBox(
+                                             height: 24,
+                                             width: 24,
+                                             child: CircularProgressIndicator(
+                                               strokeWidth: 2.5,
+                                               valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                             ),
+                                           )
+                                         : Text(
+                                             _isLogin ? 'Iniciar Sesión' : 'Registrar Cuenta',
+                                             style: const TextStyle(
+                                               fontSize: 16,
+                                               fontWeight: FontWeight.bold,
+                                               color: Colors.white,
+                                             ),
+                                           ),
+                                   ),
+                                 ),
+
+                                 // Inicio de Sesión Social con Google (Solo si no está cargando)
+                                 if (!_isLoading) ...[
+                                   const SizedBox(height: 20),
+                                   Row(
+                                     children: [
+                                       Expanded(child: Divider(color: isDark ? Colors.white12 : Colors.grey[300])),
+                                       Padding(
+                                         padding: const EdgeInsets.symmetric(horizontal: 16),
+                                         child: Text(
+                                           'O bien continúa con',
+                                           style: TextStyle(
+                                             fontSize: 12,
+                                             color: isDark ? Colors.grey[500] : Colors.grey[600],
+                                           ),
+                                         ),
+                                       ),
+                                       Expanded(child: Divider(color: isDark ? Colors.white12 : Colors.grey[300])),
+                                     ],
+                                   ),
+                                   const SizedBox(height: 16),
+                                   OutlinedButton.icon(
+                                     onPressed: _submitGoogle,
+                                     style: OutlinedButton.styleFrom(
+                                       foregroundColor: isDark ? Colors.white : const Color(0xFF1E293B),
+                                       backgroundColor: isDark ? Colors.white.withOpacity(0.04) : Colors.white,
+                                       side: BorderSide(
+                                         color: isDark ? Colors.white10 : Colors.grey[300]!,
+                                         width: 1.5,
+                                       ),
+                                       shape: RoundedRectangleBorder(
+                                         borderRadius: BorderRadius.circular(16),
+                                       ),
+                                       padding: const EdgeInsets.symmetric(vertical: 13),
+                                     ),
+                                     icon: Image.network(
+                                       'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1024px-Google_%22G%22_logo.svg.png',
+                                       height: 18,
+                                       width: 18,
+                                     ),
+                                     label: const Text(
+                                       'Iniciar con Google',
+                                       style: TextStyle(
+                                         fontSize: 14,
+                                         fontWeight: FontWeight.bold,
+                                       ),
+                                     ),
+                                   ),
+                                 ],
+                               ],
                             ),
                           ),
                         ),
@@ -435,6 +504,183 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
         errorStyle: const TextStyle(color: Colors.redAccent),
+      ),
+    );
+  }
+
+  void _showForgotPasswordDialog() {
+    final emailController = TextEditingController(text: _emailController.text);
+    final dialogFormKey = GlobalKey<FormState>();
+    bool isResetting = false;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final primaryColor = const Color(0xFF6366F1);
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: isDark ? const Color(0xFF1E1B4B) : Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: primaryColor.withOpacity(0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.lock_reset_rounded, color: primaryColor),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Recuperar Cuenta',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                  ),
+                ],
+              ),
+              content: Form(
+                key: dialogFormKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      'Ingresa tu correo electrónico registrado y te enviaremos las instrucciones para restablecer tu contraseña.',
+                      style: TextStyle(fontSize: 13, height: 1.4, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 20),
+                    TextFormField(
+                      controller: emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (v) {
+                        if (v!.isEmpty) return 'Ingresa tu correo';
+                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(v)) {
+                          return 'Correo no válido';
+                        }
+                        return null;
+                      },
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: isDark ? Colors.white : const Color(0xFF1E293B),
+                      ),
+                      decoration: InputDecoration(
+                        labelText: 'Correo Electrónico',
+                        labelStyle: const TextStyle(fontSize: 14),
+                        prefixIcon: const Icon(Icons.mail_outline_rounded),
+                        filled: true,
+                        fillColor: isDark ? Colors.black26 : Colors.grey[100],
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(
+                            color: isDark ? Colors.white10 : Colors.grey[200]!,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(
+                            color: primaryColor.withOpacity(0.7),
+                            width: 1.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isResetting ? null : () => Navigator.of(context).pop(),
+                  child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+                ),
+                ElevatedButton(
+                  onPressed: isResetting
+                      ? null
+                      : () async {
+                          if (!dialogFormKey.currentState!.validate()) return;
+                          setDialogState(() => isResetting = true);
+                          
+                          final authService = Provider.of<AuthService>(context, listen: false);
+                          final email = emailController.text.trim();
+                          final success = await authService.sendPasswordReset(email);
+                          
+                          if (mounted) {
+                            Navigator.of(context).pop();
+                            if (success) {
+                              _showSuccess('¡Correo enviado con éxito! Revisa tu bandeja de entrada. 📬🔓');
+                            } else {
+                              _showError('No pudimos enviar el correo. Verifica si la cuenta existe.');
+                            }
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  ),
+                  child: isResetting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Text('Enviar Instrucciones', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _submitGoogle() async {
+    setState(() => _isLoading = true);
+    final authService = Provider.of<AuthService>(context, listen: false);
+
+    try {
+      final user = await authService.signInWithGoogle();
+      if (user != null && mounted) {
+        _showSuccess('¡Bienvenido a Arbórea! 🌳🚀');
+      }
+    } catch (e) {
+      debugPrint('Error en _submitGoogle: $e');
+      if (mounted) {
+        _showError(
+          'No se pudo conectar con Google.\nConfigura tu huella SHA-1 en Firebase para habilitarlo.',
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle_outline, color: Colors.white),
+            const SizedBox(width: 10),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: Colors.emerald,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }

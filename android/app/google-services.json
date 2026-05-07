@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "310674473443",
+    "project_id": "billetera-d463a",
+    "storage_bucket": "billetera-d463a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:310674473443:android:029ccec26e224d150560d6",
+        "android_client_info": {
+          "package_name": "com.example.billetera_fluter"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "310674473443-gvhcmvpoii2990dmrer3vkqdunovo52d.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAtMaaDFhVj6dcUJhbs4OOmQSORpnRrdGE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "310674473443-gvhcmvpoii2990dmrer3vkqdunovo52d.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

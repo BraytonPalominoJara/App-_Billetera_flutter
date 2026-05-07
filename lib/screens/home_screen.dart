@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'dart:math' as math;
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
@@ -34,6 +36,19 @@ class _HomeScreenState extends State<HomeScreen> {
   int? _selectedHourBlock; // Bloque horario seleccionado (0-5) (nulo para todo el día)
   DateTime _selectedHourlyDate = DateTime.now(); // Fecha para el gráfico por horas
 
+  // Estado de gamificación interactiva (Arbórea)
+  bool _isWateringActive = false;
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
+  Future<void> _playSound(String url) async {
+    try {
+      await _audioPlayer.stop(); // Detener cualquier reproducción previa
+      await _audioPlayer.play(UrlSource(url));
+    } catch (e) {
+      debugPrint('Error al reproducir audio: $e');
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -44,6 +59,12 @@ class _HomeScreenState extends State<HomeScreen> {
         service.checkAndResetDailyTasks(user.uid);
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
   }
 
   @override
@@ -2347,9 +2368,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     const SizedBox(height: 20),
 
-                    // Árbol animado
+                    // Árbol animado con capa de riego interactiva
                     Center(
-                      child: _SwayingTree(level: tree.level, isDark: isDark),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          _SwayingTree(level: tree.level, isDark: isDark),
+                          if (_isWateringActive)
+                            _WateringAnimationOverlay(
+                              onComplete: () {
+                                setState(() {
+                                  _isWateringActive = false;
+                                });
+                              },
+                            ),
+                        ],
+                      ),
                     ),
 
                     const SizedBox(height: 20),
@@ -2398,18 +2432,33 @@ class _HomeScreenState extends State<HomeScreen> {
                       width: double.infinity,
                       height: 50,
                       child: ElevatedButton.icon(
-                        onPressed: tree.waterDroplets > 0
-                            ? () async {
-                                await service.waterTree(userId);
-                                final nextXp = tree.xp + 10;
-                                final newLevel = (nextXp / 100).floor() + 1;
-                                if (newLevel > tree.level) {
-                                  _showSnackBar('¡Felicidades! Tu árbol subió al nivel $newLevel! 🎉🌟🌳');
-                                } else {
-                                  _showSnackBar('¡Árbol regado con éxito! +10 XP 💧🌳');
-                                }
-                              }
-                            : null,
+                         onPressed: (tree.waterDroplets > 0 && !_isWateringActive)
+                             ? () async {
+                                 // 1. Activar animación de la regadera cayendo
+                                 setState(() {
+                                   _isWateringActive = true;
+                                 });
+
+                                 // 2. Efecto físico háptico y sonido de riego (salpicadura de agua)
+                                 HapticFeedback.mediumImpact();
+                                 _playSound('https://assets.mixkit.co/active_storage/sfx/2568/2568-84.wav');
+
+                                 // 3. Registrar el regado en Firestore de forma asíncrona
+                                 await service.waterTree(userId);
+                                 final nextXp = tree.xp + 10;
+                                 final newLevel = (nextXp / 100).floor() + 1;
+
+                                 if (newLevel > tree.level) {
+                                   // Esperar a que las gotas terminen de caer (1.2 segundos) para el nivel alto
+                                   await Future.delayed(const Duration(milliseconds: 1200));
+                                   HapticFeedback.vibrate();
+                                   _playSound('https://assets.mixkit.co/active_storage/sfx/2019/2019-84.wav');
+                                   _showSnackBar('¡Felicidades! Tu árbol subió al nivel $newLevel! 🎉🌟🌳');
+                                 } else {
+                                   _showSnackBar('¡Árbol regado con éxito! +10 XP 💧🌳');
+                                 }
+                               }
+                             : null,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF3B82F6),
                           foregroundColor: Colors.white,
@@ -2652,6 +2701,199 @@ class _SwayingTreeState extends State<_SwayingTree> with SingleTickerProviderSta
             level: widget.level,
             swayAngle: swayAngle,
             isDark: widget.isDark,
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ================= WIDGET ANIMADO DE RIEGO INTERACTIVO =================
+class _WateringAnimationOverlay extends StatefulWidget {
+  final VoidCallback onComplete;
+  const _WateringAnimationOverlay({required this.onComplete});
+
+  @override
+  State<_WateringAnimationOverlay> createState() => _WateringAnimationOverlayState();
+}
+
+class _WateringAnimationOverlayState extends State<_WateringAnimationOverlay> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  
+  // Animación de traslación y rotación de la regadera
+  late Animation<double> _canSlideX;
+  late Animation<double> _canSlideY;
+  late Animation<double> _canRotate;
+  late Animation<double> _canOpacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    );
+
+    // Movimiento en X de la regadera (entrada, permanencia y salida)
+    _canSlideX = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween<double>(begin: -100.0, end: -20.0).chain(CurveTween(curve: Curves.easeOutBack)), weight: 30),
+      TweenSequenceItem(tween: ConstantTween<double>(-20.0), weight: 50),
+      TweenSequenceItem(tween: Tween<double>(begin: -20.0, end: -100.0).chain(CurveTween(curve: Curves.easeInBack)), weight: 20),
+    ]).animate(_controller);
+
+    // Movimiento en Y de la regadera (entrada, permanencia y salida)
+    _canSlideY = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween<double>(begin: -80.0, end: -50.0).chain(CurveTween(curve: Curves.easeOutBack)), weight: 30),
+      TweenSequenceItem(tween: ConstantTween<double>(-50.0), weight: 50),
+      TweenSequenceItem(tween: Tween<double>(begin: -50.0, end: -80.0).chain(CurveTween(curve: Curves.easeInBack)), weight: 20),
+    ]).animate(_controller);
+
+    // Rotación inclinando para verter agua (comienza a verter a partir del 30% del progreso)
+    _canRotate = TweenSequence<double>([
+      TweenSequenceItem(tween: ConstantTween<double>(0.0), weight: 30),
+      TweenSequenceItem(tween: Tween<double>(begin: 0.0, end: -0.6).chain(CurveTween(curve: Curves.easeInOut)), weight: 15),
+      TweenSequenceItem(tween: ConstantTween<double>(-0.6), weight: 35),
+      TweenSequenceItem(tween: Tween<double>(begin: -0.6, end: 0.0).chain(CurveTween(curve: Curves.easeInOut)), weight: 10),
+      TweenSequenceItem(tween: ConstantTween<double>(0.0), weight: 10),
+    ]).animate(_controller);
+
+    // Opacidad para hacer fade in y fade out de la regadera
+    _canOpacity = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween<double>(begin: 0.0, end: 1.0), weight: 20),
+      TweenSequenceItem(tween: ConstantTween<double>(1.0), weight: 60),
+      TweenSequenceItem(tween: Tween<double>(begin: 1.0, end: 0.0), weight: 20),
+    ]).animate(_controller);
+
+    _controller.forward().then((_) {
+      if (mounted) {
+        widget.onComplete();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final progress = _controller.value;
+        return SizedBox(
+          width: 200,
+          height: 200,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // 1. Renderizado de las gotas cayendo por gravedad física
+              if (progress >= 0.4 && progress <= 0.85)
+                ...List.generate(5, (index) {
+                  final startOffset = 0.4 + (index * 0.07);
+                  final endOffset = startOffset + 0.22;
+                  if (progress < startOffset || progress > endOffset) {
+                    return const SizedBox.shrink();
+                  }
+
+                  // Normalizar el progreso relativo de esta gota individual
+                  final t = (progress - startOffset) / (endOffset - startOffset);
+                  
+                  // Coordenadas parabólicas de origen (pico de regadera) a destino (base del árbol)
+                  final double startX = 25.0;
+                  final double startY = -42.0;
+                  final double endX = 0.0;
+                  final double endY = 40.0;
+
+                  final currentX = startX + (endX - startX) * t;
+                  // Gravedad simulada (aceleración cuadrática)
+                  final currentY = startY + (endY - startY) * t * t;
+
+                  final showSplash = t > 0.88;
+                  final splashScale = (t - 0.88) / 0.12;
+
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      if (!showSplash)
+                        Positioned(
+                          left: 100 + currentX - 6,
+                          top: 100 + currentY - 6,
+                          child: Opacity(
+                            opacity: (1.0 - t).clamp(0.0, 1.0),
+                            child: const Icon(
+                              Icons.opacity_rounded,
+                              color: Color(0xFF60A5FA),
+                              size: 15,
+                            ),
+                          ),
+                        ),
+                      if (showSplash)
+                        Positioned(
+                          left: 100 + endX - (15 * splashScale),
+                          top: 100 + endY - (6 * splashScale),
+                          child: Opacity(
+                            opacity: (1.0 - splashScale).clamp(0.0, 1.0),
+                            child: Container(
+                              width: 30 * splashScale,
+                              height: 12 * splashScale,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: const Color(0xFF60A5FA), width: 1.5),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                }),
+
+              // 2. La Regadera Virtual
+              Positioned(
+                left: 100 + _canSlideX.value - 30,
+                top: 100 + _canSlideY.value - 30,
+                child: Opacity(
+                  opacity: _canOpacity.value,
+                  child: Transform.rotate(
+                    angle: _canRotate.value,
+                    origin: const Offset(15, 15),
+                    child: SizedBox(
+                      width: 60,
+                      height: 60,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          // Cuerpo de la regadera
+                          const Icon(
+                            Icons.local_drink_rounded,
+                            size: 40,
+                            color: Color(0xFF3B82F6),
+                          ),
+                          // Pico dispensador
+                          Positioned(
+                            right: 6,
+                            top: 18,
+                            child: Transform.rotate(
+                              angle: 0.8,
+                              child: Container(
+                                width: 14,
+                                height: 7,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF2563EB),
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },

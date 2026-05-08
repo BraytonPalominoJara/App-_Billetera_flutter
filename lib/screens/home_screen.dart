@@ -400,7 +400,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: primaryColor.withOpacity(0.12),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.park_rounded, color: primaryColor, size: 40),
+                    child: Icon(Icons.park_rounded, color: primaryColor, size: 40),
                   ),
                   const SizedBox(height: 12),
                   const Text(

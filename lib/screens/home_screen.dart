@@ -214,14 +214,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  static const String _currentAppVersion = '1.1.0';
+  static const String _currentAppVersion = '1.2.0';
 
   Future<void> _checkForUpdates({bool silent = true}) async {
     try {
       final doc = await FirebaseFirestore.instance
           .collection('app_config')
           .doc('update_info')
-          .get();
+          .get(const GetOptions(source: Source.server));
 
       if (!doc.exists) {
         if (!silent) {
@@ -242,6 +242,8 @@ class _HomeScreenState extends State<HomeScreen> {
       final updateUrl = (data['update_url'] ?? '').toString().trim();
       final releaseNotes = (data['release_notes'] ?? 'Mejoras en la experiencia de usuario y optimizaciones.').toString().trim();
       final isMandatory = data['is_mandatory'] ?? false;
+
+      debugPrint('Arbórea Debug: latest_version de Firestore = "$latestVersion" | _currentAppVersion de la App = "$_currentAppVersion"');
 
       if (latestVersion != _currentAppVersion) {
         _showUpdateDialog(latestVersion, updateUrl, releaseNotes, isMandatory);
@@ -517,28 +519,33 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '¡Hola, de nuevo!',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: isDark ? Colors.grey[400] : Colors.grey[600],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '¡Hola, de nuevo!',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      displayName,
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: -0.5,
-                        color: isDark ? Colors.white : const Color(0xFF1E293B),
+                      const SizedBox(height: 4),
+                      Text(
+                        displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -0.5,
+                          color: isDark ? Colors.white : const Color(0xFF1E293B),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 16),
                 Row(
                   children: [
                     // Botón de Información y Buscar Actualizaciones

@@ -225,31 +225,31 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (!doc.exists) {
         if (!silent) {
-          _showCustomSnackBar('¡Tu aplicación está actualizada! v$_currentAppVersion 🌳', isError: false);
+          _showCustomSnackBar('Al día. Local: "$_currentAppVersion" | Doc Firestore no existe', isError: false);
         }
         return;
       }
-
+ 
       final data = doc.data();
       if (data == null) {
         if (!silent) {
-          _showCustomSnackBar('¡Tu aplicación está actualizada! v$_currentAppVersion 🌳', isError: false);
+          _showCustomSnackBar('Al día. Local: "$_currentAppVersion" | Datos vacíos', isError: false);
         }
         return;
       }
-
+ 
       final latestVersion = (data['latest_version'] ?? _currentAppVersion).toString().trim();
       final updateUrl = (data['update_url'] ?? '').toString().trim();
       final releaseNotes = (data['release_notes'] ?? 'Mejoras en la experiencia de usuario y optimizaciones.').toString().trim();
       final isMandatory = data['is_mandatory'] ?? false;
-
+ 
       debugPrint('Arbórea Debug: latest_version de Firestore = "$latestVersion" | _currentAppVersion de la App = "$_currentAppVersion"');
-
+ 
       if (latestVersion != _currentAppVersion) {
         _showUpdateDialog(latestVersion, updateUrl, releaseNotes, isMandatory);
       } else {
         if (!silent) {
-          _showCustomSnackBar('¡Tu aplicación está actualizada! v$_currentAppVersion 🌳', isError: false);
+          _showCustomSnackBar('Al día. Local: "$_currentAppVersion" | Remoto: "$latestVersion" | Iguales', isError: false);
         }
       }
     } catch (e) {

@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:math' as math;
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
@@ -57,6 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final service = Provider.of<FirestoreService>(context, listen: false);
       if (user != null) {
         service.checkAndResetDailyTasks(user.uid);
+        _checkForUpdates(); // Búsqueda silenciosa de actualizaciones al arrancar
       }
     });
   }
@@ -211,6 +214,289 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  static const String _currentAppVersion = '1.1.0';
+
+  Future<void> _checkForUpdates({bool silent = true}) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('app_config')
+          .doc('update_info')
+          .get();
+
+      if (!doc.exists) {
+        if (!silent) {
+          _showCustomSnackBar('¡Tu aplicación está actualizada! v$_currentAppVersion 🌳', isError: false);
+        }
+        return;
+      }
+
+      final data = doc.data();
+      if (data == null) {
+        if (!silent) {
+          _showCustomSnackBar('¡Tu aplicación está actualizada! v$_currentAppVersion 🌳', isError: false);
+        }
+        return;
+      }
+
+      final latestVersion = data['latest_version'] ?? _currentAppVersion;
+      final updateUrl = data['update_url'] ?? '';
+      final releaseNotes = data['release_notes'] ?? 'Mejoras en la experiencia de usuario y optimizaciones.';
+      final isMandatory = data['is_mandatory'] ?? false;
+
+      if (latestVersion != _currentAppVersion) {
+        _showUpdateDialog(latestVersion, updateUrl, releaseNotes, isMandatory);
+      } else {
+        if (!silent) {
+          _showCustomSnackBar('¡Tu aplicación está actualizada! v$_currentAppVersion 🌳', isError: false);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error al comprobar actualizaciones: $e');
+      if (!silent) {
+        _showCustomSnackBar('No se pudo verificar la actualización.', isError: true);
+      }
+    }
+  }
+
+  void _showUpdateDialog(String latestVersion, String updateUrl, String releaseNotes, bool isMandatory) {
+    showDialog(
+      context: context,
+      barrierDismissible: !isMandatory, // Si es obligatoria, no puede cerrarse tocando fuera
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final primaryColor = const Color(0xFF6366F1);
+
+        return WillPopScope(
+          onWillPop: () async => !isMandatory, // Impedir retroceso si es obligatoria
+          child: AlertDialog(
+            backgroundColor: isDark ? const Color(0xFF1E1B4B) : Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withOpacity(0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.system_update_alt_rounded, color: Colors.amber),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    isMandatory ? 'Actualización Requerida' : 'Nueva Versión Disponible',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                RichText(
+                  text: TextSpan(
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isDark ? Colors.grey[300] : Colors.grey[700],
+                      fontFamily: 'Roboto',
+                    ),
+                    children: [
+                      const TextSpan(text: 'La versión '),
+                      TextSpan(
+                        text: 'v$latestVersion',
+                        style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
+                      ),
+                      const TextSpan(text: ' ya está lista. Tu versión actual es '),
+                      const TextSpan(
+                        text: 'v$_currentAppVersion',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const TextSpan(text: '.'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.black.withOpacity(0.2) : Colors.grey[100],
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Notas de la versión:',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        releaseNotes,
+                        style: TextStyle(
+                          fontSize: 13,
+                          height: 1.4,
+                          color: isDark ? Colors.white70 : Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              if (!isMandatory)
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Más tarde', style: TextStyle(color: Colors.grey)),
+                ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (updateUrl.isNotEmpty) {
+                    final uri = Uri.parse(updateUrl);
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    } else {
+                      _showCustomSnackBar('No se pudo abrir el enlace de descarga.', isError: true);
+                    }
+                  } else {
+                    _showCustomSnackBar('No hay un enlace de descarga configurado.', isError: true);
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryColor,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                ),
+                child: const Text('Actualizar Ahora', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showAppInfoDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final primaryColor = const Color(0xFF6366F1);
+        bool checking = false;
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: isDark ? const Color(0xFF1E1B4B) : Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              title: Column(
+                children: [
+                  Container(
+                    width: 70,
+                    height: 70,
+                    decoration: BoxDecoration(
+                      color: primaryColor.withOpacity(0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.park_rounded, color: primaryColor, size: 40),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Arbórea',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24, letterSpacing: -0.5),
+                  ),
+                  const Text(
+                    'Versión $_currentAppVersion',
+                    style: TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Tu gestor financiero inteligente y gamificado. Ahorra, siembra metas, riega tus finanzas y mira crecer tu bosque virtual.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.4,
+                      color: isDark ? Colors.grey[300] : Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Divider(color: isDark ? Colors.white12 : Colors.grey[200]),
+                  const SizedBox(height: 8),
+                  Text(
+                    '© 2026 Arbórea Inc.',
+                    style: TextStyle(fontSize: 11, color: isDark ? Colors.grey[500] : Colors.grey[400]),
+                  ),
+                ],
+              ),
+              actionsAlignment: MainAxisAlignment.spaceBetween,
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cerrar', style: TextStyle(color: Colors.grey)),
+                ),
+                ElevatedButton.icon(
+                  onPressed: checking
+                      ? null
+                      : () async {
+                          setDialogState(() => checking = true);
+                          await _checkForUpdates(silent: false);
+                          if (mounted) {
+                            setDialogState(() => checking = false);
+                          }
+                        },
+                  icon: checking
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 1.5,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Icon(Icons.refresh_rounded, size: 16),
+                  label: Text(checking ? 'Buscando...' : 'Buscar Actualización'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showCustomSnackBar(String message, {required bool isError}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              isError ? Icons.error_outline_rounded : Icons.check_circle_outline_rounded,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: isError ? Colors.redAccent : const Color(0xFF10B981),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+
   // ================= TAB 1: BILLETERA (WALLETS) =================
   Widget _buildWalletTab(
     FirestoreService service,
@@ -253,23 +539,48 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ],
                 ),
-                Container(
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      if (!isDark)
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.03),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        )
-                    ],
-                  ),
-                  child: IconButton(
-                    icon: Icon(Icons.logout_rounded, color: isDark ? Colors.grey[300] : Colors.grey[700]),
-                    onPressed: () => _confirmSignOut(context, authService),
-                  ),
+                Row(
+                  children: [
+                    // Botón de Información y Buscar Actualizaciones
+                    Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          if (!isDark)
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.03),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            )
+                        ],
+                      ),
+                      child: IconButton(
+                        icon: Icon(Icons.info_outline_rounded, color: isDark ? Colors.grey[300] : Colors.grey[700]),
+                        onPressed: () => _showAppInfoDialog(context),
+                      ),
+                    ),
+                    // Botón de Cerrar Sesión
+                    Container(
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          if (!isDark)
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.03),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            )
+                        ],
+                      ),
+                      child: IconButton(
+                        icon: Icon(Icons.logout_rounded, color: isDark ? Colors.grey[300] : Colors.grey[700]),
+                        onPressed: () => _confirmSignOut(context, authService),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

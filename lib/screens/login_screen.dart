@@ -371,10 +371,34 @@ class _LoginScreenState extends State<LoginScreen> {
                                        ),
                                        padding: const EdgeInsets.symmetric(vertical: 13),
                                      ),
-                                     icon: Image.network(
-                                       'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1024px-Google_%22G%22_logo.svg.png',
-                                       height: 18,
+                                     icon: SizedBox(
                                        width: 18,
+                                       height: 18,
+                                       child: Image.network(
+                                         'https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png',
+                                         height: 18,
+                                         width: 18,
+                                         fit: BoxFit.contain,
+                                         errorBuilder: (context, error, stackTrace) {
+                                           return Container(
+                                             width: 18,
+                                             height: 18,
+                                             decoration: const BoxDecoration(
+                                               color: Color(0xFF4285F4), // Azul Google oficial
+                                               shape: BoxShape.circle,
+                                             ),
+                                             alignment: Alignment.center,
+                                             child: const Text(
+                                               'G',
+                                               style: TextStyle(
+                                                 color: Colors.white,
+                                                 fontSize: 11,
+                                                 fontWeight: FontWeight.bold,
+                                               ),
+                                             ),
+                                           );
+                                         },
+                                       ),
                                      ),
                                      label: const Text(
                                        'Iniciar con Google',

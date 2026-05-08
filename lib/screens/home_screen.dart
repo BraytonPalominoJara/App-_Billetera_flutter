@@ -238,9 +238,9 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
 
-      final latestVersion = data['latest_version'] ?? _currentAppVersion;
-      final updateUrl = data['update_url'] ?? '';
-      final releaseNotes = data['release_notes'] ?? 'Mejoras en la experiencia de usuario y optimizaciones.';
+      final latestVersion = (data['latest_version'] ?? _currentAppVersion).toString().trim();
+      final updateUrl = (data['update_url'] ?? '').toString().trim();
+      final releaseNotes = (data['release_notes'] ?? 'Mejoras en la experiencia de usuario y optimizaciones.').toString().trim();
       final isMandatory = data['is_mandatory'] ?? false;
 
       if (latestVersion != _currentAppVersion) {
